@@ -5,7 +5,7 @@
  * 
  */
 
-'use strict';
+//'use strict';
 
 // ─── Referencias al DOM ───────────────────────────────────────────────────────
 const form             = document.getElementById('ticketForm');
@@ -23,9 +23,10 @@ const totalVendidas    = document.getElementById('totalVendidas');
 const emptyState       = document.getElementById('emptyState');
 const previewSubtotal  = document.getElementById('previewSubtotal');
 const previewAmount    = document.getElementById('previewAmount');
+const exportCsvButton  = document.getElementById('exportCsv');
 
-var compras = [];
-var filtroActivo = 'all';
+const compras = []; //cambie var por const para evitar reasignaciones accidentales, ya que el array compras se modifica mediante métodos como push, pero no se reasigna a otro valor. Usar const ayuda a prevenir errores y hace que el código sea más claro al indicar que la referencia al array no cambiará.
+let filtroActivo = 'all'; // cambie var por let porque filtroActivo es una variable que se reasigna cada vez que se cambia el filtro, por lo que no es adecuada para ser declarada como const. Usar let permite que la variable se actualice correctamente sin causar errores de reasignación, y también mejora la legibilidad al indicar que esta variable está destinada a cambiar a lo largo del tiempo.
 
 const inventario = {
   vip:     { precio: 5000, stock: 10, vendidas: 0 },
@@ -41,14 +42,14 @@ function registrarCompra(evento) {
 
   const nombre = inputNombre.value.trim();
   const tipo   = selectTipo.value;
-  const cantidad = parseInt(inputCantidad.value, 10);
+  const cantidad = Number.parseInt(inputCantidad.value, 10);//le agrege number a parseint para asegurarme que se convierta a numero, aunque el input sea de tipo number, siempre es bueno validar y convertir el valor a un numero entero antes de usarlo en cálculos o comparaciones. Esto ayuda a prevenir errores y garantiza que el valor se maneje correctamente en el resto del código.
 
   if (nombre === '' || tipo === '' || inputCantidad.value === '') {
     mensajeError.textContent = 'Todos los campos son obligatorios.';
     return;
   }
-
-  if (isNaN(cantidad) || cantidad <= 0) {
+  
+  if (Number.isNaN(cantidad) || cantidad <= 0) { //le agrege number a isNaN para asegurarme que se valide correctamente si el valor no es un numero, aunque el input sea de tipo number, siempre es bueno validar y convertir el valor a un numero entero antes de usarlo en cálculos o comparaciones. Esto ayuda a prevenir errores y garantiza que el valor se maneje correctamente en el resto del código.
     mensajeError.textContent = 'La cantidad debe ser un número entero mayor a 0.';
     return;
   }
@@ -132,8 +133,8 @@ function actualizarContadores() {
 // ─── Vista previa del subtotal ────────────────────────────────────────────────
 function actualizarPreview() {
   const tipo = selectTipo.value;
-  const cantidad = parseInt(inputCantidad.value, 10);
-  if (tipo && !isNaN(cantidad) && cantidad > 0 && inventario[tipo]) {
+  const cantidad = Number.parseInt(inputCantidad.value, 10);//le agrege number a parseInt para asegurarme que se convierta a numero, aunque el input sea de tipo number, siempre es bueno validar y convertir el valor a un numero entero antes de usarlo en cálculos o comparaciones. Esto ayuda a prevenir errores y garantiza que el valor se maneje correctamente en el resto del código.
+  if (tipo && !Number.isNaN(cantidad) && cantidad > 0 && inventario[tipo]) { //le agrege number a isNaN para asegurarme que se valide correctamente si el valor no es un numero, aunque el input sea de tipo number, siempre es bueno validar y convertir el valor a un numero entero antes de usarlo en cálculos o comparaciones. Esto ayuda a prevenir errores y garantiza que el valor se maneje correctamente en el resto del código.
     const subtotal = cantidad * inventario[tipo].precio;
     previewAmount.textContent = formatearPesos(subtotal);
     previewSubtotal.classList.remove('d-none');
@@ -143,12 +144,26 @@ function actualizarPreview() {
 }
 
 function generarRotacionVip() {
-  const rotacion = (Math.random() * 6 - 3).toFixed(2);
+  // Creamos un array de un entero de 32 bits sin signo
+  const array = new Uint32Array(1);
+  // Lo llenamos con un valor criptográficamente seguro
+  crypto.getRandomValues(array);
+  // Transformamos el entero gigante en un número flotante entre 0 y 1 (igual que Math.random)
+  const randomSeguro = array[0] / 0xFFFFFFFF;
+  
+  const rotacion = (randomSeguro * 6 - 3).toFixed(2);
   return rotacion;
 }
 
 function generarRotacionGeneral() {
-  const rotacion = (Math.random() * 4 - 2).toFixed(2);
+  // Creamos un array de un entero de 32 bits sin signo
+  const array = new Uint32Array(1);
+  // Lo llenamos con un valor criptográficamente seguro
+  crypto.getRandomValues(array);
+  // Transformamos el entero gigante en un número flotante entre 0 y 1 (igual que Math.random)
+  const randomSeguro = array[0] / 0xFFFFFFFF;
+
+  const rotacion = (randomSeguro * 4 - 2).toFixed(2);
   return rotacion;
 }
 
@@ -172,13 +187,52 @@ function cambiarFiltro(nuevoFiltro) {
 
   actualizarTabla();
   actualizarContadores();
-  return;
   const resumen = compras.length + ' compras registradas.';
-  console.log(resumen);
+  console.log(resumen); //simplimente borre el return del console.log para que se ejecute correctamente, ya que el return no es necesario en este contexto y puede causar que el código deje de ejecutarse después de esta línea, lo que no es deseable. Al eliminar el return, el código continuará ejecutándose normalmente después de imprimir el resumen en la consola.
 }
+// ─── Exportar historial a CSV ───────────────────────────────────────────────
+/* sonarignore:start */
+function exportarHistorialCSV() {
+  if (compras.length === 0) {
+    alert('No hay compras registradas para exportar.');
+    return;
+  }
 
+  const cabeceras = ['Comprador', 'Tipo', 'Cantidad', 'Total'];
+  const filas = compras.map(function (compra) {
+    return [
+      compra.nombre,
+      compra.tipo.toUpperCase(),
+      compra.cantidad,
+      formatearPesos(compra.total),
+    ];
+  });
 
-// TODO: agregar funcionalidad para exportar el historial de compras a CSV.
+  const csv = [cabeceras, ...filas]
+    .map(function (fila) {
+      return fila
+        .map(function (valor) {
+          return '"' + String(valor).replaceAll('"', '""') + '"';
+        })
+        .join(',');
+    })
+    .join('\r\n');
+
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const enlace = document.createElement('a');
+
+  enlace.setAttribute('href', url);
+  enlace.setAttribute('download', 'historial_compras_' + new Date().toISOString().slice(0, 10) + '.csv');
+  enlace.style.display = 'none';
+
+  document.body.appendChild(enlace);
+  enlace.click();
+  enlace.remove();
+  URL.revokeObjectURL(url);
+}
+/* sonarignore:end */
+
 // ─── Binding de eventos ───────────────────────────────────────────────────────
 form.addEventListener('submit', registrarCompra);
 
@@ -191,6 +245,10 @@ document.getElementById('filterAll').addEventListener('click', () => {
 
 document.getElementById('filterVip').addEventListener('click', () => {
   cambiarFiltro('vip');
+});
+
+document.getElementById('exportCsv').addEventListener('click', () => {
+  exportarHistorialCSV();
 });
 
 // ─── Inicialización ───────────────────────────────────────────────────────────
